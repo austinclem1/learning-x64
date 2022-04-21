@@ -161,9 +161,11 @@ read_char:
     mov rsi, rsp ; read to stack
     mov rdx, 1 ; read one byte
     syscall
-    cmp rax, 0
-    mov rax, 0
-    cmovg rax, [rsp] ; if read syscall read greater than 0 bytes, return the char, else return 0
+    test rax, rax
+    mov rax, 0 ; if read syscall read greater than 0 bytes, return the char, else return 0
+    jz .done
+    mov al, [rsp]
+.done:
     inc rsp
     ret
 
@@ -187,11 +189,13 @@ is_whitespace:
 
 read_word:
     sub rsp, 16
-    test rsi, rsi ; if buffer length is zero, end early
+    xor rcx, rcx
+    test rsi, rsi ; if buffer length is zero or one, end early
     jz .end
+    cmp rsi, 1
+    je .add_null_byte
     mov [rsp + 8], rsi ; dest buffer size
     mov [rsp], rdi ; dest buffer address
-    xor rcx, rcx
 .eat_whitespace_loop:
     push rcx
     call read_char
@@ -217,12 +221,14 @@ read_word:
     jz .add_null_byte
     mov rdi, rax
     push rdi
+    push rcx
     call is_whitespace
-    test rax, rax
+    pop rcx
     pop rdi
+    test rax, rax
     jnz .add_null_byte
-    mov rdx, [rsp]
-    mov [rdx + rcx], dil
+    mov rax, [rsp]
+    mov byte [rax + rcx], dil
     inc rcx
     jmp .loop
 .out_of_space:
