@@ -217,6 +217,52 @@ read_word:
     ret
 
 
+read_word_str:
+    cmp rdx, 1 ; if buffer length is zero or one, end early
+    jle .out_of_space
+    dec rdx
+    xor rax, rax
+.eat_whitespace_loop:
+    mov al, byte [rsi]
+    test rax, rax
+    jz .add_null_byte ; if we reach end of string here, end early
+    push rdi
+    mov rdi, rax
+    call is_whitespace
+    pop rdi
+    test rax, rax
+    inc rsi
+    jnz .eat_whitespace_loop
+    xor rcx, rcx
+.loop:
+    mov al, byte [rsi + rcx]
+    test rax, rax
+    jz .add_null_byte
+    push rdi
+    push rcx
+    push rax
+    mov rdi, rax
+    call is_whitespace
+    test rax, rax
+    pop rax
+    pop rcx
+    pop rdi
+    jnz .add_null_byte
+    cmp rcx, rdx ; see if we still have space in dest buffer
+    jge .out_of_space
+    mov byte [rdi + rcx], al
+    inc rcx
+    jmp .loop
+.out_of_space:
+    xor rax, rax
+    jmp .end
+.add_null_byte:
+    mov rax, rdi
+    mov byte [rdi + rcx], 0
+.end:
+    ret
+
+
 parse_uint:
     push rbx
     xor rax, rax
