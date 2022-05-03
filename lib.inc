@@ -230,10 +230,11 @@ read_word_str:
     mov rdi, rax
     call is_whitespace
     pop rdi
-    test rax, rax
     inc rsi
+    test rax, rax
     jnz .eat_whitespace_loop
     xor rcx, rcx
+    dec rsi
 .loop:
     mov al, byte [rsi + rcx]
     test rax, rax
@@ -270,7 +271,7 @@ parse_uint:
     xor rcx, rcx
     xor rsi, rsi
 .loop:
-    mov sil, [rdi + rcx]
+    mov sil, byte [rdi + rcx]
     test sil, sil
     jz .end
     cmp sil, '0'
@@ -344,4 +345,27 @@ string_copy:
     mov byte [rsi + rcx], 0
     mov rax, rdi
 .end:
+    ret
+
+; args:
+; rdi = string1
+; rsi = string2
+; return:
+; rax = true or false
+str_cmp:
+    xor rcx, rcx
+.loop:
+    mov al, byte [rdi + rcx]
+    mov dl, byte [rsi + rcx]
+    cmp al, dl
+    jne .false
+    test al, al
+    jz .true
+    inc rcx
+    jmp .loop
+.false:
+    xor rax, rax
+    ret
+.true:
+    mov rax, 1
     ret

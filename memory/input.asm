@@ -25,37 +25,38 @@ section .data
 section .text
 global _start
 _start:
-    sub rsp, 256
+    ; sub rsp, 256
 
-    mov rdi, rsp
-    mov rsi, str_true
-    mov rdx, 256
-    call read_word_str
-    mov rdi, str_buffer_too_small
-    test rax, rax
-    cmovnz rdi, rax
-    call print_string
-    call print_newline
+    ; mov rdi, rsp
+    ; mov rsi, str_true
+    ; mov rdx, 256
+    ; call read_word_str
+    ; mov rdi, str_buffer_too_small
+    ; test rax, rax
+    ; cmovnz rdi, rax
+    ; call print_string
+    ; call print_newline
 
-    mov rdi, rsp
-    mov rsi, str_false
-    mov rdx, 256
-    call read_word_str
-    mov rdi, str_buffer_too_small
-    test rax, rax
-    cmovnz rdi, rax
-    call print_string
-    call print_newline
+    ; mov rdi, rsp
+    ; mov rsi, str_false
+    ; mov rdx, 256
+    ; call read_word_str
+    ; mov rdi, str_buffer_too_small
+    ; test rax, rax
+    ; cmovnz rdi, rax
+    ; call print_string
+    ; call print_newline
 
-    mov rdi, rsp
-    mov rsi, str_factorial_of
-    mov rdx, 256
-    call read_word_str
-    mov rdi, str_buffer_too_small
-    test rax, rax
-    cmovnz rdi, rax
-    call print_string
-    call print_newline
+    ; mov rdi, rsp
+    ; mov rsi, str_factorial_of
+    ; mov rdx, 256
+    ; call read_word_str
+    ; mov rdi, str_buffer_too_small
+    ; test rax, rax
+    ; cmovnz rdi, rax
+    ; call print_string
+    ; call print_newline
+    sub rsp, 8
 
     ; open file
     mov rax, 2
@@ -73,10 +74,18 @@ _start:
     mov r10, MAP_PRIVATE ; utility flags
     xor r9, r9 ; offset in file
     syscall
+    mov [rsp], rax
 
     mov rdi, str_factorial_of
     call print_string
-    mov rdi, 5
+    mov rdi, [rsp]
+    push rdi
+    call parse_uint
+    pop rdi
+    add rdi, rdx
+    mov [rsp], rdi
+    mov rdi, rax
+    push rdi
     call print_uint
     mov rdi, str_colon
     call print_string
