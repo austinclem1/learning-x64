@@ -275,12 +275,12 @@ parse_uint:
     test sil, sil
     jz .end
     cmp sil, '0'
-    jl .end
+    jb .end
     cmp sil, '9'
-    jg .end
+    ja .end
     sub sil, '0'
     mul rbx
-    add al, sil
+    add rax, rsi
     inc rcx
     jmp .loop
 .end:

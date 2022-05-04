@@ -12,6 +12,7 @@ native %1, %2, 0
 %endmacro
 
 %macro native 3
+section .data
 w_%2:
     dq previous
     db %1, 0
@@ -21,6 +22,7 @@ xt_%2:
 
 %define previous w_%2
 
+section .text
 %2_impl:
 
 %endmacro
@@ -43,15 +45,17 @@ resq 1023
 rstack_start: resq 1
 input_buf: resb 1024
 
-resq 0xFFFE
-mem: resq 1
+user_mem: resq 0xFFFF
 
 section .data
 program_stub: dq xt_main
-; this one cell is the program
-; program_stub: dq 0
+xt_interpreter: dq .interpreter
+.interpreter: dq _start.loop
 
 section .text
+
+
+; Aritmetic
 
 native '+', plus
     pop rax
@@ -80,6 +84,9 @@ native '/', divide
     div rcx
     push rax
     jmp next
+
+
+; Comparisons
 
 native '<', less_than
     mov rcx, [rsp]
@@ -125,6 +132,9 @@ native '>', greater
     setg dl
     push rdx
     jmp next
+
+
+; Boolean Logic
 
 native "and", and
     pop rax
@@ -173,8 +183,65 @@ native "not", not
     push rax
     jmp next
 
+
+; Stack Manipulation
+
+native "rot", rot
+    pop rdx
+    pop rcx
+    pop rax
+    push rcx
+    push rdx
+    push rax
+    jmp next
+
+native "swap", swap
+    pop rcx
+    pop rax
+    push rcx
+    push rax
+    jmp next
+
+native "dup", dup
+    mov rax, [rsp]
+    push rax
+    jmp next
+
 native "drop", drop
     add rsp, 8
+    jmp next
+
+native ".", pop
+    pop rdi
+    call print_int
+    call print_newline
+    jmp next
+
+native ".S", print_stack
+    mov rdi, '<'
+    call print_char
+    mov rdi, rbp
+    sub rdi, rsp
+    sar rdi, 3
+    call print_uint
+    mov rdi, '>'
+    call print_char
+    mov rdi, ' '
+    call print_char
+    lea rcx, [0 + rbp - 8] ; address of first value on stack
+.loop:
+    cmp rcx, rsp
+    jb .end
+    mov rdi, [rcx]
+    push rcx
+    call print_int
+    mov rdi, ' '
+    call print_char
+    pop rcx
+    sub rcx, 8
+    jmp .loop
+.end:
+    call print_newline
     jmp next
 
 ; native "init", init
@@ -192,6 +259,60 @@ native "docol", docol
 native "exit", exit
     mov pc, [rstack]
     add rstack, 8
+    jmp next
+
+
+; I/O
+
+native "key", key
+    call read_char
+    movzx rcx, al
+    push rcx
+    jmp next
+
+native "emit", emit
+    pop rdi
+    call print_char
+    call print_newline
+    jmp next
+
+native "number", number
+    mov rdi, input_buf
+    mov rsi, 1024
+    call read_word
+    mov rdi, rax
+    call parse_int
+    push rax
+    jmp next
+
+native "!", store
+    pop rax ; data to store
+    pop rdi ; dest address
+    mov [rdi], rax
+    jmp next
+
+native "c!", store_char
+    pop rax ; data to store
+    pop rdi ; dest address
+    mov byte [rdi], al
+    jmp next
+
+native "@", fetch
+    pop rax
+    mov rax, [rax]
+    push rax
+    jmp next
+
+native "c@", fetch_char
+    pop rax
+    mov al, byte [rax]
+    and rax, 0xFF
+    push rax
+    jmp next
+
+native "mem", mem
+    mov rax, user_mem
+    push rax
     jmp next
 
 native "word", word
@@ -215,35 +336,11 @@ native "inbuf", inbuf
     push qword input_buf
     jmp next
 
-native "print_top", print_top
-    pop rdi
-    call print_uint
-    jmp next
-
-native ".S", print_stack
-    mov rcx, rsp
-.loop:
-    cmp rcx, mem
-    jae .end
-    mov rdi, [rcx]
-    push rcx
-    call print_int
-    call print_newline
-    pop rcx
-    add rcx, 8
-    jmp .loop
-.end:
-    jmp next
-
 colon "main", main
+    dq xt_number
+    dq xt_number
     dq xt_plus
-    dq xt_print_top
-    dq xt_inbuf
-    dq xt_word
-    dq xt_drop
-    dq xt_inbuf
-    dq xt_prints
-    dq xt_bye
+    dq xt_exit
 
 last_word: dq w_main
 
@@ -252,17 +349,12 @@ last_word: dq w_main
 ; execution
 next:
     mov w, [pc]
-    ; add pc, 8
-    mov pc, xt_interpreter
+    add pc, 8
     jmp [w]
 
-; The program starts execution from the init word
-; _start: jmp init_impl
-xt_interpreter: dq interpreter_impl
-interpreter_impl: dq _start.loop
 _start:
+    mov rbp, rsp
     mov rstack, rstack_start
-    mov rsp, mem
 .loop:
     mov rdi, input_buf
     mov rsi, 1024
